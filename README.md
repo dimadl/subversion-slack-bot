@@ -20,7 +20,7 @@
     <p>Provide a full path to the python script (e.d python /home/user/subversion-slack-bot/subversion.py)
   </li>
   <li>
-    Set up cron wich will call run.sh script. 
+    Set up cron which will call run.sh script. 
     <p><i>e.g. */5 * * * * bash /home/user/subversion-slack-bot/run.sh</i> - run.sh will be called every five minutes
   </li>
   
