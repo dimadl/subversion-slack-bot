@@ -5,6 +5,7 @@ import xml.etree.ElementTree
 import json
 import sys
 import os
+import requests
 
 """
 	SVN properties
@@ -20,10 +21,18 @@ barnch_path = ""
 
 domain_url = ""
 
+
+"""
+	Hipchat properties
+"""
+
+server = ""
+token = ""
+room = ""
+
 """
 	Paths
 """
-
 pwd = os.getcwd()
 
 rev_path_file = pwd + '/rev.txt'
@@ -116,6 +125,73 @@ def create_payload(logentry):
 	payload.text = "*New commit in " + logentry.date + "*"
 	return payload
 
+def create_payload_for_hipchat(logentry):
+
+	message = "<b>New commit in " + logentry.date + "</b><br><br>"
+	message += "<b>Revision #" + logentry.revision + "</b><br>"
+	message += "<b>Author:</b>\t" + logentry.author + "<br><br>" + logentry.msg + "<br><br>"
+
+	message += "Affected files:<br>"
+
+	for e_file in logentry.paths:
+		action = e_file.action
+		message += "<span style='color:"
+		if action=='A':
+			message += "#7CD197"
+		elif action == 'M':
+			message += "#DE9E31"
+		elif action == 'D':
+			message += "#D50200"
+		message += "'>"+action+"</span>"
+		message += " " + e_file.path + "<br>"
+
+	return message
+
+
+def hipchat_notify(message, color='yellow', notify=False,
+                   format='html'):
+    """Send notification to a HipChat room via API version 2
+    Parameters
+    ----------
+    token : str
+        HipChat API version 2 compatible token (room or user token)
+    room: str
+        Name or API ID of the room to notify
+    message: str
+        Message to send to room
+    color: str, optional
+        Background color for message, defaults to yellow
+        Valid values: yellow, green, red, purple, gray, random
+    notify: bool, optional
+        Whether message should trigger a user notification, defaults to False
+    format: str, optional
+        Format of message, defaults to text
+        Valid values: text, html
+    host: str, optional
+        Host to connect to, defaults to api.hipchat.com
+    """
+
+    if len(message) > 10000:
+        raise ValueError('Message too long')
+    if format not in ['text', 'html']:
+        raise ValueError("Invalid message format '{0}'".format(format))
+    if color not in ['yellow', 'green', 'red', 'purple', 'gray', 'random']:
+        raise ValueError("Invalid color {0}".format(color))
+    if not isinstance(notify, bool):
+        raise TypeError("Notify must be boolean")
+
+    url = "https://{0}/v2/room/{1}/notification".format(server, room)
+    headers = {'Content-type': 'application/json'}
+    headers['Authorization'] = "Bearer " + token
+    payload = {
+        'message': message,
+        'notify': notify,
+        'message_format': format,
+        'color': color
+    }
+    r = requests.post(url, data=json.dumps(payload), headers=headers)
+    r.raise_for_status()
+
 
 
 def main():
@@ -156,10 +232,12 @@ def main():
 	for item in data:
 
 		payload = create_payload(item)
+		message = create_payload_for_hipchat(item)
 
 		print "Message is ready for sending."
+		print message
 
-		subprocess.call("curl -X POST --data-urlencode 'payload=" + json.dumps(payload, default=lambda o: o.__dict__) + "' " + domain_url +"", shell=True)
+		hipchat_notify(message)
 
 		print "Message has been sent to slack"
 
