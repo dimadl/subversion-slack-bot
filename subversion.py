@@ -237,6 +237,7 @@ def main():
 		print "Message is ready for sending."
 		print message
 
+		subprocess.call("curl -X POST --data-urlencode 'payload=" + json.dumps(payload, default=lambda o: o.__dict__) + "' " + domain_url +"", shell=True)
 		hipchat_notify(message)
 
 		print "Message has been sent to slack"
